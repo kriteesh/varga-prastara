@@ -361,21 +361,97 @@ function splitToUnits(word) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FILLER POOL
-// Mix of: plain consonants, consonants+common matras, half-letters
-// Half-letters appear in fillers too → blends with answer half-letters
+// FILLER GENERATOR — weighted, generative, full Devanagari variety
+//
+// Categories (with approximate weights):
+//   40% — consonant + matra   (ka kā ki kī ku kū ke kai ko kau + anusvara/visarga)
+//   20% — half-letter (halant) e.g. त् ष् म्
+//   15% — plain consonant (no matra, no halant)
+//   15% — independent vowel / svara (अ आ इ ई उ ऊ ए ऐ ओ औ ऋ)
+//   10% — nasal consonant ± matra (ङ ञ ण न म — full and half)
+//
+// ALL non-nasal consonants participate in matra forms.
+// Svaras appear as standalone cells.
+// Nasals appear both as full (न, म, ण) and half (न्, म्, ण्).
 // ═══════════════════════════════════════════════════════════════
-const FILLERS = [
-  // plain consonants
-  'क','ख','ग','घ','च','ज','त','द','न','प','ब','म','र','ल','व','स','ह','य','श','ट','ड','थ','ध','भ','फ','ण','ञ','ङ',
-  // with matras
-  'का','कि','की','कु','के','को','गि','गु','चि','जा','ता','ति','दा','दि','ना','नि','पा','पि','बा','मा','मि','रा','रि','ला','वा','सा','सि','हा','हि',
-  // half letters (virama) — so they don't stand out
-  'क्','ग्','च्','ज्','त्','द्','न्','प्','ब्','म्','र्','ल्','व्','स्','ह्','य्','श्','ट्','ड्','ध्','भ्','ष्',
+
+// All standard consonants (non-nasal) — ka-varga to ha
+const _C_MAIN = [
+  'क','ख','ग','घ',          // ka-varga (non-nasal)
+  'च','छ','ज','झ',          // ca-varga (non-nasal)
+  'ट','ठ','ड','ढ',          // ṭa-varga (non-nasal)
+  'त','थ','द','ध',          // ta-varga (non-nasal)
+  'प','फ','ब','भ',          // pa-varga (non-nasal)
+  'य','र','ल','व',          // semi-vowels
+  'श','ष','स','ह',          // sibilants + ha
 ];
 
+// Nasal consonants — get their own category
+const _C_NASAL = ['ङ','ञ','ण','न','म'];
+
+// Dependent matra signs (excludes inherent 'a' — bare consonant handles that)
+// Unicode: ā i ī u ū ṛ e ai o au anusvara visarga
+const _MATRAS = [
+  '\u093E', // ा  ā
+  '\u093F', // ि  i
+  '\u0940', // ी  ī
+  '\u0941', // ु  u
+  '\u0942', // ू  ū
+  '\u0943', // ृ  ṛ
+  '\u0947', // े  e
+  '\u0948', // ै  ai
+  '\u094B', // ो  o
+  '\u094C', // ौ  au
+  '\u0902', // ं  anusvara (nasalisation — common in Hindi)
+  '\u0903', // ः  visarga   (less common but valid)
+];
+
+// Matra weights — ā, i, ī, u, e, o are most common in Hindi; anusvara moderate; others rarer
+const _MATRA_WEIGHTS = [18,14,10,12,6,3,12,5,12,4,8,2]; // sums to 106
+
+// Svaras (independent vowels)
+const _SVARAS = ['अ','आ','इ','ई','उ','ऊ','ए','ऐ','ओ','औ','ऋ','ॠ'];
+
+// Weighted random pick from array + weight array
+function _wpick(arr, weights) {
+  const total = weights.reduce((a,b)=>a+b,0);
+  let r = Math.random() * total;
+  for (let i=0; i<arr.length; i++) { r -= weights[i]; if (r<=0) return arr[i]; }
+  return arr[arr.length-1];
+}
+
 function randomFiller() {
-  return FILLERS[Math.floor(Math.random() * FILLERS.length)];
+  const roll = Math.random();
+
+  if (roll < 0.40) {
+    // Consonant + matra (any non-nasal consonant)
+    const c = _C_MAIN[Math.floor(Math.random() * _C_MAIN.length)];
+    const m = _wpick(_MATRAS, _MATRA_WEIGHTS);
+    return c + m;
+
+  } else if (roll < 0.60) {
+    // Half-letter (consonant + virama) — both main and nasal
+    const pool = [..._C_MAIN, ..._C_NASAL];
+    const c = pool[Math.floor(Math.random() * pool.length)];
+    return c + '\u094D'; // ्
+
+  } else if (roll < 0.75) {
+    // Plain consonant (inherent 'a' vowel, no matra mark)
+    const pool = [..._C_MAIN, ..._C_NASAL];
+    return pool[Math.floor(Math.random() * pool.length)];
+
+  } else if (roll < 0.90) {
+    // Independent svara
+    return _SVARAS[Math.floor(Math.random() * _SVARAS.length)];
+
+  } else {
+    // Nasal consonant ± matra (full form with vowel)
+    const c = _C_NASAL[Math.floor(Math.random() * _C_NASAL.length)];
+    // 50% bare, 50% with a common matra
+    if (Math.random() < 0.5) return c;
+    const commonMatras = ['\u093E','\u093F','\u0940','\u0941','\u0947','\u094B','\u0902'];
+    return c + commonMatras[Math.floor(Math.random() * commonMatras.length)];
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
