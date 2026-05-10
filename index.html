@@ -29,7 +29,6 @@
       --font-title:  'Yatra One', 'Tiro Devanagari Hindi', serif;
       --font-body:   'Baloo 2', 'Tiro Devanagari Hindi', sans-serif;
       --font-deva:   'Tiro Devanagari Hindi', serif;
-      /* 9 cells filling screen width minus 40px total side margin */
       --cell-size:   calc((min(100vw, 500px) - 40px) / 9);
     }
 
@@ -51,7 +50,6 @@
     .screen.active { display:flex; }
     @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
 
-    /* ── RANGOLI BORDER ── */
     .rangoli-border {
       border: 2px solid var(--gold);
       border-image: repeating-linear-gradient(
@@ -112,8 +110,7 @@
     .hint-btn:active { background:rgba(200,148,26,.25); }
     .progress-pill { background:rgba(200,148,26,.1); border:1px solid rgba(200,148,26,.28); border-radius:20px; padding:.28rem .65rem; font-size:.76rem; color:var(--gold); white-space:nowrap; }
 
-    /* ── INSTRUCTION ── */
-    .instr-bar { text-align:center; padding:.38rem 1rem; font-family:var(--font-deva); font-size:.8rem; color:rgba(245,230,200,.38); }
+    .instr-bar { text-align:center; padding:.38rem 1rem; font-family:var(--font-deva); font-size:.78rem; color:rgba(245,230,200,.35); }
 
     /* ── GRID ── */
     .grid-wrapper { display:flex; justify-content:center; padding:10px 20px; }
@@ -131,18 +128,15 @@
       background:rgba(50,22,5,.9);
       display:flex; align-items:center; justify-content:center;
       font-family:var(--font-deva);
-      /* font size = ~44% of cell size, clamped */
-      font-size:clamp(13px, calc(var(--cell-size) * 0.44), 24px);
+      font-size:clamp(13px, calc(var(--cell-size) * 0.42), 23px);
       color:var(--parchment);
       border-radius:4px;
       cursor:pointer;
       transition:background .12s, transform .1s;
       line-height:1;
       position:relative;
-      /* prevent text selection on repeated taps */
       user-select:none; -webkit-user-select:none;
     }
-
     .grid-cell.sel-start {
       background:rgba(212,98,26,.68) !important;
       color:#fff;
@@ -173,7 +167,7 @@
       border-bottom:1px solid rgba(200,148,26,.18);
     }
     .submit-bar.visible { display:flex; animation:fadeIn .2s ease; }
-    .sel-preview { font-family:var(--font-deva); font-size:1.12rem; color:var(--turmeric); flex:1; text-align:center; letter-spacing:.06em; }
+    .sel-preview { font-family:var(--font-deva); font-size:1.05rem; color:var(--turmeric); flex:1; text-align:center; letter-spacing:.05em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .submit-btn { background:linear-gradient(135deg,var(--leaf-green),#1d4a2b); color:#fff; border:none; border-radius:8px; padding:.52rem 1rem; font-family:var(--font-deva); font-size:.9rem; cursor:pointer; white-space:nowrap; }
     .submit-btn:active { opacity:.8; }
     .cancel-btn { background:rgba(139,26,26,.3); border:1px solid rgba(192,57,43,.4); border-radius:8px; color:var(--parchment); padding:.52rem .85rem; font-family:var(--font-deva); font-size:.88rem; cursor:pointer; }
@@ -203,11 +197,9 @@
     .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
     .toast.wrong { background:rgba(139,26,26,.92); border-color:var(--crimson); }
 
-    /* ── OFFLINE ── */
     .offline-badge { display:none; position:fixed; top:0; left:0; right:0; background:var(--mud); color:var(--cream); text-align:center; font-family:var(--font-deva); font-size:.76rem; padding:.22rem; z-index:300; }
     .offline-badge.show { display:block; }
 
-    /* ── INSTALL ── */
     .install-banner { display:none; position:fixed; bottom:0; left:0; right:0; z-index:200; background:rgba(30,12,3,.97); border-top:1px solid var(--gold); padding:.75rem 1rem; align-items:center; gap:.7rem; }
     .install-banner.show { display:flex; }
     .install-banner-text { flex:1; font-family:var(--font-deva); font-size:.86rem; color:var(--parchment); }
@@ -269,7 +261,6 @@
     <div class="grid-container" id="gridContainer"></div>
   </div>
 
-  <!-- Appears after first tap -->
   <div class="submit-bar" id="submitBar">
     <button class="cancel-btn" onclick="cancelSelection()">✕</button>
     <div class="sel-preview" id="selPreview">—</div>
@@ -303,13 +294,24 @@
 <script>
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
-// DEVANAGARI UTILITIES
-// ═══════════════════════════════════════════════════════════
-const VIRAMA = '\u094D';
+// ═══════════════════════════════════════════════════════════════
+// DEVANAGARI — split into display units
+//
+// APPROACH: No sanyukta akshara in cells.
+// Each consonant cluster (consonant + virama + consonant...) is
+// broken into: bare consonant with halant (्) for all but the last,
+// and the last consonant takes any following matra.
+//
+// Example: "कृष्ण" → ["कृ", "ष्", "ण"]
+//          "त्रिपुर" → ["त्", "रि", "पु", "र"]
+// This way ALL cells look like normal Devanagari, no odd conjuncts,
+// AND filler cells can also use halant letters without standing out.
+// ═══════════════════════════════════════════════════════════════
+const VIRAMA = '\u094D';  // ्
 
-function isDependent(ch) {
+function isVowelSign(ch) {
   const cp = ch.codePointAt(0);
+  // dependent vowel signs, anusvara, visarga, chandrabindu, nukta
   return (cp >= 0x093A && cp <= 0x094C) ||
          cp === 0x0902 || cp === 0x0903 ||
          cp === 0x0901 || cp === 0x0900 ||
@@ -317,386 +319,521 @@ function isDependent(ch) {
          (cp >= 0x0955 && cp <= 0x0957);
 }
 
-function splitDevanagari(str) {
+// Split a Devanagari word into grid-cell units (no sanyukta akshara)
+// Each unit is either:
+//   - consonant + matra(s)          e.g. "कि", "रु", "ण"
+//   - consonant + virama            e.g. "ष्", "त्"  (half letter display)
+//   - independent vowel (अ आ इ...)
+function splitToUnits(word) {
+  const chars = [...word];
   const units = [];
-  const chars = [...str];
   let i = 0;
+
   while (i < chars.length) {
-    let unit = chars[i++];
+    let ch = chars[i++];
+
+    // collect any virama+consonant chains, then break them apart
+    const consonants = [ch];
     while (i < chars.length && chars[i] === VIRAMA) {
-      unit += chars[i++];
-      if (i < chars.length) unit += chars[i++];
+      i++; // skip virama
+      if (i < chars.length) { consonants.push(chars[i++]); }
     }
-    while (i < chars.length && isDependent(chars[i])) unit += chars[i++];
-    units.push(unit);
+
+    // collect matras/anusvara after the final consonant
+    const matras = [];
+    while (i < chars.length && isVowelSign(chars[i])) {
+      matras.push(chars[i++]);
+    }
+
+    if (consonants.length === 1) {
+      // Simple consonant or vowel — attach matras to it
+      units.push(ch + matras.join(''));
+    } else {
+      // Cluster: emit all but last as "consonant + virama" (half letter)
+      for (let k = 0; k < consonants.length - 1; k++) {
+        units.push(consonants[k] + VIRAMA);
+      }
+      // Last consonant gets the matras
+      units.push(consonants[consonants.length - 1] + matras.join(''));
+    }
   }
   return units;
 }
 
-// ═══════════════════════════════════════════════════════════
-// PUZZLE GENERATOR  (fixed 9×9, 12 words)
-// ═══════════════════════════════════════════════════════════
-const GRID_SIZE = 9;
+// ═══════════════════════════════════════════════════════════════
+// FILLER POOL
+// Mix of: plain consonants, consonants+common matras, half-letters
+// Half-letters appear in fillers too → blends with answer half-letters
+// ═══════════════════════════════════════════════════════════════
+const FILLERS = [
+  // plain consonants
+  'क','ख','ग','घ','च','ज','त','द','न','प','ब','म','र','ल','व','स','ह','य','श','ट','ड','थ','ध','भ','फ','ण','ञ','ङ',
+  // with matras
+  'का','कि','की','कु','के','को','गि','गु','चि','जा','ता','ति','दा','दि','ना','नि','पा','पि','बा','मा','मि','रा','रि','ला','वा','सा','सि','हा','हि',
+  // half letters (virama) — so they don't stand out
+  'क्','ग्','च्','ज्','त्','द्','न्','प्','ब्','म्','र्','ल्','व्','स्','ह्','य्','श्','ट्','ड्','ध्','भ्','ष्',
+];
+
+function randomFiller() {
+  return FILLERS[Math.floor(Math.random() * FILLERS.length)];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PUZZLE GENERATOR — 9×9, 12 words, intersection-biased placement
+// ═══════════════════════════════════════════════════════════════
+const GRID_SIZE      = 9;
 const WORDS_PER_PUZZLE = 12;
 const DIRS = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
-const FILLERS = 'क,ख,ग,घ,च,ज,त,द,न,प,ब,म,र,ल,व,स,ह,य,श,ट,ड,थ,ध,भ,फ,ण'.split(',');
 
 function shuffle(arr) {
-  const a=[...arr];
-  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
   return a;
 }
 
 function canPlace(grid, units, r, c, dr, dc) {
-  for(let i=0;i<units.length;i++){
-    const nr=r+i*dr, nc=c+i*dc;
-    if(nr<0||nr>=GRID_SIZE||nc<0||nc>=GRID_SIZE) return false;
-    if(grid[nr][nc]!==null && grid[nr][nc]!==units[i]) return false;
+  for (let i = 0; i < units.length; i++) {
+    const nr = r + i * dr, nc = c + i * dc;
+    if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) return false;
+    if (grid[nr][nc] !== null && grid[nr][nc] !== units[i]) return false;
   }
   return true;
 }
 
+// Count how many cells of a candidate placement overlap with existing words
+function countIntersections(grid, units, r, c, dr, dc) {
+  let hits = 0;
+  for (let i = 0; i < units.length; i++) {
+    const nr = r + i * dr, nc = c + i * dc;
+    if (grid[nr][nc] === units[i]) hits++;
+  }
+  return hits;
+}
+
 function placeWord(grid, units, r, c, dr, dc) {
-  const cells=[];
-  for(let i=0;i<units.length;i++){grid[r+i*dr][c+i*dc]=units[i]; cells.push([r+i*dr,c+i*dc]);}
+  const cells = [];
+  for (let i = 0; i < units.length; i++) {
+    grid[r + i * dr][c + i * dc] = units[i];
+    cells.push([r + i * dr, c + i * dc]);
+  }
   return cells;
 }
 
 function generatePuzzle(allWords) {
-  // remove duplicates, keep words that fit in 9 cells
-  const unique = [...new Set(allWords)];
-  const eligible = unique.filter(w => splitDevanagari(w).length <= GRID_SIZE);
+  // dedupe, convert to units, filter to those fitting in 9 cells
+  const seen = new Set();
+  const eligible = [];
+  for (const w of allWords) {
+    if (seen.has(w)) continue;
+    seen.add(w);
+    const u = splitToUnits(w);
+    if (u.length <= GRID_SIZE) eligible.push({ original: w, units: u });
+  }
+
   const pool = shuffle(eligible);
   const chosen = pool.slice(0, WORDS_PER_PUZZLE);
-
-  const aw = chosen.map(w=>({original:w, units:splitDevanagari(w)}));
-  aw.sort((a,b)=>b.units.length-a.units.length);
+  // longest first — gives placer the best chance to interlock
+  chosen.sort((a, b) => b.units.length - a.units.length);
 
   let best = null;
 
-  for(let attempt=0; attempt<15; attempt++){
-    const grid = Array.from({length:GRID_SIZE},()=>Array(GRID_SIZE).fill(null));
-    const placements={};
-    let placed=0;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+    const placements = {};
+    let placed = 0;
 
-    for(const word of aw){
-      const dirs = shuffle(DIRS);
-      let ok=false;
-      for(let t=0;t<150&&!ok;t++){
-        const [dr,dc]=dirs[t%dirs.length];
-        const maxR=dr>0?GRID_SIZE-word.units.length:(dr<0?GRID_SIZE-1:GRID_SIZE-1);
-        const minR=dr<0?word.units.length-1:0;
-        const maxC=dc>0?GRID_SIZE-word.units.length:(dc<0?GRID_SIZE-1:GRID_SIZE-1);
-        const minC=dc<0?word.units.length-1:0;
-        if(maxR<minR||maxC<minC) continue;
-        const r=minR+Math.floor(Math.random()*(maxR-minR+1));
-        const c=minC+Math.floor(Math.random()*(maxC-minC+1));
-        if(canPlace(grid,word.units,r,c,dr,dc)){
-          placements[word.original]={cells:placeWord(grid,word.units,r,c,dr,dc),dr,dc};
-          placed++; ok=true;
+    for (const word of chosen) {
+      // Gather ALL valid placements for this word
+      const candidates = [];
+      for (const [dr, dc] of DIRS) {
+        const maxR = dr > 0 ? GRID_SIZE - word.units.length : (dr < 0 ? GRID_SIZE - 1 : GRID_SIZE - 1);
+        const minR = dr < 0 ? word.units.length - 1 : 0;
+        const maxC = dc > 0 ? GRID_SIZE - word.units.length : (dc < 0 ? GRID_SIZE - 1 : GRID_SIZE - 1);
+        const minC = dc < 0 ? word.units.length - 1 : 0;
+        if (maxR < minR || maxC < minC) continue;
+        for (let r = minR; r <= maxR; r++) {
+          for (let c = minC; c <= maxC; c++) {
+            if (canPlace(grid, word.units, r, c, dr, dc)) {
+              const intersections = countIntersections(grid, word.units, r, c, dr, dc);
+              candidates.push({ r, c, dr, dc, intersections });
+            }
+          }
         }
       }
+
+      if (!candidates.length) continue;
+
+      // Sort: prefer more intersections; break ties randomly
+      candidates.sort((a, b) => {
+        if (b.intersections !== a.intersections) return b.intersections - a.intersections;
+        return Math.random() - 0.5;
+      });
+
+      // Pick from the top-intersection tier (add slight randomness among equals)
+      const topScore = candidates[0].intersections;
+      const topTier = candidates.filter(c => c.intersections === topScore);
+      const pick = topTier[Math.floor(Math.random() * Math.min(topTier.length, 3))];
+
+      placements[word.original] = {
+        cells: placeWord(grid, word.units, pick.r, pick.c, pick.dr, pick.dc),
+        dr: pick.dr, dc: pick.dc
+      };
+      placed++;
     }
 
-    if(placed>(best?best.placed:-1)){
-      const filled=grid.map(row=>row.map(c=>c===null?FILLERS[Math.floor(Math.random()*FILLERS.length)]:c));
-      best={grid:filled, placements, placed, words:aw.filter(w=>placements[w.original]).map(w=>w.original)};
+    if (placed > (best ? best.placed : -1)) {
+      const filled = grid.map(row =>
+        row.map(cell => cell === null ? randomFiller() : cell)
+      );
+      best = {
+        grid: filled,
+        placements,
+        placed,
+        words: chosen.filter(w => placements[w.original]).map(w => w.original)
+      };
     }
-    if(placed===aw.length) break;
+    if (placed === chosen.length) break;
   }
+
   return best;
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // APP STATE
-// ═══════════════════════════════════════════════════════════
-const STORAGE_KEY='vargaPrastar_v2';
-let state={userName:'', puzzles:[], completedPuzzles:[]};
+// ═══════════════════════════════════════════════════════════════
+const STORAGE_KEY = 'vargaPrastar_v2';
+let state = { userName: '', puzzles: [], completedPuzzles: [] };
 
-function loadState(){try{const r=localStorage.getItem(STORAGE_KEY);if(r)Object.assign(state,JSON.parse(r));}catch(e){}}
-function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify({userName:state.userName,completedPuzzles:state.completedPuzzles,puzzles:state.puzzles}));}
-async function fetchPuzzles(){
-  try{const r=await fetch('puzzleFile.json',{cache:'no-cache'});if(r.ok){state.puzzles=await r.json();saveState();}}catch(e){}
+function loadState() {
+  try { const r = localStorage.getItem(STORAGE_KEY); if (r) Object.assign(state, JSON.parse(r)); } catch(e) {}
+}
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    userName: state.userName,
+    completedPuzzles: state.completedPuzzles,
+    puzzles: state.puzzles
+  }));
+}
+async function fetchPuzzles() {
+  try {
+    const r = await fetch('puzzleFile.json', { cache: 'no-cache' });
+    if (r.ok) { state.puzzles = await r.json(); saveState(); }
+  } catch(e) {}
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // NAVIGATION
-// ═══════════════════════════════════════════════════════════
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
-
-// ═══════════════════════════════════════════════════════════
-// NAME SCREEN
-// ═══════════════════════════════════════════════════════════
-function saveName(){
-  const v=document.getElementById('nameInput').value.trim();
-  if(!v){showToast('कृपया अपना नाम लिखें');return;}
-  state.userName=v; saveState(); renderHome(); showScreen('homeScreen');
+// ═══════════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 }
-function resetName(){document.getElementById('nameInput').value=state.userName; showScreen('nameScreen');}
-document.getElementById('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveName();});
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// NAME SCREEN
+// ═══════════════════════════════════════════════════════════════
+function saveName() {
+  const v = document.getElementById('nameInput').value.trim();
+  if (!v) { showToast('कृपया अपना नाम लिखें'); return; }
+  state.userName = v; saveState(); renderHome(); showScreen('homeScreen');
+}
+function resetName() {
+  document.getElementById('nameInput').value = state.userName;
+  showScreen('nameScreen');
+}
+document.getElementById('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
+
+// ═══════════════════════════════════════════════════════════════
 // HOME SCREEN
-// ═══════════════════════════════════════════════════════════
-const LEVEL_META={easy:{icon:'🌸',label:'सरल'},medium:{icon:'🔥',label:'मध्यम'},hard:{icon:'⚡',label:'कठिन'}};
+// ═══════════════════════════════════════════════════════════════
+const LEVEL_META = {
+  easy:   { icon: '🌸', label: 'सरल' },
+  medium: { icon: '🔥', label: 'मध्यम' },
+  hard:   { icon: '⚡', label: 'कठिन' },
+};
 
-function renderHome(){
-  document.getElementById('displayName').textContent=state.userName;
-  const list=document.getElementById('puzzleList');
-  if(!state.puzzles.length){list.innerHTML=`<div style="text-align:center;color:var(--gold);font-family:var(--font-deva);padding:2rem;">कोई पहेली नहीं मिली।<br>इंटरनेट से कनेक्ट करें।</div>`;return;}
-  list.innerHTML=state.puzzles.map(p=>{
-    const done=state.completedPuzzles.includes(p.puzzle_id);
-    const meta=LEVEL_META[p.puzzle_level]||LEVEL_META.easy;
-    return `<div class="puzzle-item ${done?'done':''}" onclick="startPuzzle('${p.puzzle_id}')">
-      <div><div class="pi-name">${meta.icon} ${p.puzzle_name}</div>
-      <div class="pi-meta">${meta.label} · ${WORDS_PER_PUZZLE} शब्द · ${p.puzzle_answers.length} में से यादृच्छिक</div></div>
-      <div class="pi-status">${done?'✅':'▶️'}</div>
+function renderHome() {
+  document.getElementById('displayName').textContent = state.userName;
+  const list = document.getElementById('puzzleList');
+  if (!state.puzzles.length) {
+    list.innerHTML = `<div style="text-align:center;color:var(--gold);font-family:var(--font-deva);padding:2rem;">कोई पहेली नहीं मिली।<br>इंटरनेट से कनेक्ट करें।</div>`;
+    return;
+  }
+  list.innerHTML = state.puzzles.map(p => {
+    const done = state.completedPuzzles.includes(p.puzzle_id);
+    const meta = LEVEL_META[p.puzzle_level] || LEVEL_META.easy;
+    return `<div class="puzzle-item ${done ? 'done' : ''}" onclick="startPuzzle('${p.puzzle_id}')">
+      <div>
+        <div class="pi-name">${meta.icon} ${p.puzzle_name}</div>
+        <div class="pi-meta">${meta.label} · ${WORDS_PER_PUZZLE} शब्द · ${p.puzzle_answers.length} में से यादृच्छिक</div>
+      </div>
+      <div class="pi-status">${done ? '✅' : '▶️'}</div>
     </div>`;
   }).join('');
 }
-function goHome(){renderHome();showScreen('homeScreen');}
+function goHome() { renderHome(); showScreen('homeScreen'); }
 
-// ═══════════════════════════════════════════════════════════
-// PUZZLE — runtime state
-// ═══════════════════════════════════════════════════════════
-let puzzleGrid=[], gridPlacements={}, currentWords=[], foundWords=new Set(), currentPuzzleId='';
-let selStart=null, selEnd=null;
+// ═══════════════════════════════════════════════════════════════
+// PUZZLE RUNTIME STATE
+// ═══════════════════════════════════════════════════════════════
+let puzzleGrid = [], gridPlacements = {}, currentWords = [], foundWords = new Set(), currentPuzzleId = '';
+let selStart = null, selEnd = null;
 
-function startPuzzle(pid){
-  const pd=state.puzzles.find(p=>p.puzzle_id===pid);
-  if(!pd) return;
+function startPuzzle(pid) {
+  const pd = state.puzzles.find(p => p.puzzle_id === pid);
+  if (!pd) return;
 
-  currentPuzzleId=pid; foundWords=new Set(); selStart=null; selEnd=null;
+  currentPuzzleId = pid;
+  foundWords = new Set();
+  selStart = null; selEnd = null;
 
-  const result=generatePuzzle(pd.puzzle_answers);
-  puzzleGrid=result.grid; gridPlacements=result.placements; currentWords=result.words;
+  const result = generatePuzzle(pd.puzzle_answers);
+  puzzleGrid     = result.grid;
+  gridPlacements = result.placements;
+  currentWords   = result.words;
 
-  const meta=LEVEL_META[pd.puzzle_level]||LEVEL_META.easy;
-  document.getElementById('puzzleTitleName').textContent=pd.puzzle_name;
-  document.getElementById('puzzleTitleLevel').textContent=meta.label+' · '+currentWords.length+' शब्द';
+  const meta = LEVEL_META[pd.puzzle_level] || LEVEL_META.easy;
+  document.getElementById('puzzleTitleName').textContent = pd.puzzle_name;
+  document.getElementById('puzzleTitleLevel').textContent = meta.label + ' · ' + currentWords.length + ' शब्द';
 
-  renderGrid(); resetFoundSection(); updateProgress(); hideSubmitBar();
+  renderGrid();
+  resetFoundSection();
+  updateProgress();
+  hideSubmitBar();
   showScreen('puzzleScreen');
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // GRID RENDER
-// ═══════════════════════════════════════════════════════════
-function renderGrid(){
-  const container=document.getElementById('gridContainer');
-  container.innerHTML='';
-  for(let r=0;r<GRID_SIZE;r++){
-    for(let c=0;c<GRID_SIZE;c++){
-      const cell=document.createElement('div');
-      cell.className='grid-cell';
-      cell.textContent=puzzleGrid[r][c];
-      cell.dataset.r=r; cell.dataset.c=c;
-      cell.id=`cell-${r}-${c}`;
-      // Use touchend for mobile (fires before any scroll logic interferes)
-      cell.addEventListener('touchend', e=>{e.preventDefault(); onCellTap(r,c);});
-      cell.addEventListener('click', ()=>onCellTap(r,c));
+// ═══════════════════════════════════════════════════════════════
+function renderGrid() {
+  const container = document.getElementById('gridContainer');
+  container.innerHTML = '';
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'grid-cell';
+      cell.textContent = puzzleGrid[r][c];
+      cell.dataset.r = r; cell.dataset.c = c;
+      cell.id = `cell-${r}-${c}`;
+      cell.addEventListener('touchend', e => { e.preventDefault(); onCellTap(r, c); });
+      cell.addEventListener('click', () => onCellTap(r, c));
       container.appendChild(cell);
     }
   }
 }
 
-function getCell(r,c){return document.getElementById(`cell-${r}-${c}`);}
+function getCell(r, c) { return document.getElementById(`cell-${r}-${c}`); }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // CLICK-CLICK SELECTION
-// ═══════════════════════════════════════════════════════════
-function onCellTap(r,c){
-  if(!selStart){
-    // First tap: set start cell
-    selStart={r,c}; selEnd=null;
+// ═══════════════════════════════════════════════════════════════
+function onCellTap(r, c) {
+  if (!selStart) {
+    selStart = { r, c }; selEnd = null;
     clearHighlights();
-    const el=getCell(r,c); if(el) el.classList.add('sel-start');
+    const el = getCell(r, c); if (el) el.classList.add('sel-start');
     updateSubmitBar([selStart]);
-  } else if(!selEnd && selStart.r===r && selStart.c===c){
-    // Tap same start again → cancel
+  } else if (!selEnd && selStart.r === r && selStart.c === c) {
     cancelSelection();
   } else {
-    // Second tap: set end, preview selection
-    selEnd={r,c};
+    selEnd = { r, c };
     updateHighlight();
-    updateSubmitBar(getLineCells(selStart,selEnd));
+    updateSubmitBar(getLineCells(selStart, selEnd));
   }
 }
 
-// Snap selection to 8 directions
-function getLineCells(start,end){
-  if(!start||!end) return start?[start]:[];
-  let dr=end.r-start.r, dc=end.c-start.c;
-  const len=Math.max(Math.abs(dr),Math.abs(dc));
-  if(len===0) return [start];
-  // non-diagonal: snap to dominant axis
-  if(dr!==0&&dc!==0&&Math.abs(dr)!==Math.abs(dc)){
-    if(Math.abs(dr)>Math.abs(dc)) dc=0; else dr=0;
+function getLineCells(start, end) {
+  if (!start || !end) return start ? [start] : [];
+  let dr = end.r - start.r, dc = end.c - start.c;
+  const len = Math.max(Math.abs(dr), Math.abs(dc));
+  if (len === 0) return [start];
+  if (dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) {
+    if (Math.abs(dr) > Math.abs(dc)) dc = 0; else dr = 0;
   }
-  const ndr=dr===0?0:(dr>0?1:-1);
-  const ndc=dc===0?0:(dc>0?1:-1);
-  const newLen=Math.max(Math.abs(dr)===0?Math.abs(dc):Math.abs(dr), 0);
-  const cells=[];
-  for(let i=0;i<=newLen;i++) cells.push({r:start.r+i*ndr, c:start.c+i*ndc});
+  const ndr = dr === 0 ? 0 : (dr > 0 ? 1 : -1);
+  const ndc = dc === 0 ? 0 : (dc > 0 ? 1 : -1);
+  const newLen = Math.max(Math.abs(dr) === 0 ? Math.abs(dc) : Math.abs(dr), 0);
+  const cells = [];
+  for (let i = 0; i <= newLen; i++) cells.push({ r: start.r + i * ndr, c: start.c + i * ndc });
   return cells;
 }
 
-function clearHighlights(){
-  document.querySelectorAll('.grid-cell.sel-start,.grid-cell.selecting').forEach(el=>{
-    el.classList.remove('sel-start','selecting');
+function clearHighlights() {
+  document.querySelectorAll('.grid-cell.sel-start,.grid-cell.selecting').forEach(el => {
+    el.classList.remove('sel-start', 'selecting');
   });
 }
 
-function updateHighlight(){
+function updateHighlight() {
   clearHighlights();
-  const cells=getLineCells(selStart,selEnd);
-  cells.forEach(({r,c},i)=>{
-    const el=getCell(r,c); if(!el) return;
-    el.classList.add(i===0?'sel-start':'selecting');
+  const cells = getLineCells(selStart, selEnd);
+  cells.forEach(({ r, c }, i) => {
+    const el = getCell(r, c); if (!el) return;
+    el.classList.add(i === 0 ? 'sel-start' : 'selecting');
   });
 }
 
-function updateSubmitBar(cells){
-  const text=(cells||[]).map(({r,c})=>puzzleGrid[r][c]).join('');
-  document.getElementById('selPreview').textContent=text||'—';
+function updateSubmitBar(cells) {
+  const text = (cells || []).map(({ r, c }) => puzzleGrid[r][c]).join(' ');
+  document.getElementById('selPreview').textContent = text || '—';
   document.getElementById('submitBar').classList.add('visible');
 }
 
-function hideSubmitBar(){
+function hideSubmitBar() {
   document.getElementById('submitBar').classList.remove('visible');
-  document.getElementById('selPreview').textContent='—';
+  document.getElementById('selPreview').textContent = '—';
 }
 
-function cancelSelection(){
-  clearHighlights(); selStart=null; selEnd=null; hideSubmitBar();
+function cancelSelection() {
+  clearHighlights(); selStart = null; selEnd = null; hideSubmitBar();
 }
 
-function submitSelection(){
-  if(!selStart){return;}
-  const cells=getLineCells(selStart, selEnd||selStart);
-  if(cells.length<2){showToast('कम से कम दो अक्षर चुनें',true); cancelSelection(); return;}
+function submitSelection() {
+  if (!selStart) return;
+  const cells = getLineCells(selStart, selEnd || selStart);
+  if (cells.length < 2) { showToast('कम से कम दो अक्षर चुनें', true); cancelSelection(); return; }
 
-  const selectedUnits=cells.map(({r,c})=>puzzleGrid[r][c]);
-  let matchedWord=null;
+  const selectedUnits = cells.map(({ r, c }) => puzzleGrid[r][c]);
 
-  for(const word of currentWords){
-    if(foundWords.has(word)) continue;
-    const units=splitDevanagari(word);
-    const fwd=units.join('')===selectedUnits.join('');
-    const rev=[...units].reverse().join('')===selectedUnits.join('');
-    if(fwd||rev){
-      const pl=gridPlacements[word];
-      if(pl){
-        const selCheck=rev?[...cells].reverse():cells;
-        const matches=pl.cells.length===selCheck.length &&
-          pl.cells.every(([pr,pc],i)=>selCheck[i]&&pr===selCheck[i].r&&pc===selCheck[i].c);
-        if(matches){matchedWord=word; break;}
-      } else {matchedWord=word; break;}
+  let matchedWord = null;
+  for (const word of currentWords) {
+    if (foundWords.has(word)) continue;
+    const units = splitToUnits(word);
+    const fwd = units.join('') === selectedUnits.join('');
+    const rev = [...units].reverse().join('') === selectedUnits.join('');
+    if (fwd || rev) {
+      const pl = gridPlacements[word];
+      if (pl) {
+        const selCheck = rev ? [...cells].reverse() : cells;
+        const matches = pl.cells.length === selCheck.length &&
+          pl.cells.every(([pr, pc], i) => selCheck[i] && pr === selCheck[i].r && pc === selCheck[i].c);
+        if (matches) { matchedWord = word; break; }
+      } else { matchedWord = word; break; }
     }
   }
 
-  clearHighlights(); selStart=null; selEnd=null; hideSubmitBar();
+  clearHighlights(); selStart = null; selEnd = null; hideSubmitBar();
 
-  if(matchedWord){
+  if (matchedWord) {
     foundWords.add(matchedWord);
-    const pl=gridPlacements[matchedWord];
-    if(pl) pl.cells.forEach(([r,c])=>{const el=getCell(r,c);if(el)el.classList.add('found');});
+    const pl = gridPlacements[matchedWord];
+    if (pl) pl.cells.forEach(([r, c]) => { const el = getCell(r, c); if (el) el.classList.add('found'); });
     addFoundChip(matchedWord);
     updateProgress();
-    showToast('✨ '+matchedWord,false);
-    if(foundWords.size===currentWords.length) setTimeout(showCongrats,700);
+    showToast('✨ ' + matchedWord, false);
+    if (foundWords.size === currentWords.length) setTimeout(showCongrats, 700);
   } else {
-    showToast('यह शब्द नहीं है',true);
+    showToast('यह शब्द नहीं है', true);
   }
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // FOUND WORDS
-// ═══════════════════════════════════════════════════════════
-function resetFoundSection(){
-  document.getElementById('foundChips').innerHTML='';
-  document.getElementById('foundLabel').textContent='अभी तक कोई शब्द नहीं मिला';
+// ═══════════════════════════════════════════════════════════════
+function resetFoundSection() {
+  document.getElementById('foundChips').innerHTML = '';
+  document.getElementById('foundLabel').textContent = 'अभी तक कोई शब्द नहीं मिला';
 }
-function addFoundChip(word){
-  const chips=document.getElementById('foundChips');
-  const chip=document.createElement('div');
-  chip.className='found-chip'; chip.textContent=word;
+function addFoundChip(word) {
+  const chips = document.getElementById('foundChips');
+  const chip = document.createElement('div');
+  chip.className = 'found-chip'; chip.textContent = word;
   chips.appendChild(chip);
-  document.getElementById('foundLabel').textContent=`मिले शब्द (${foundWords.size}/${currentWords.length})`;
+  document.getElementById('foundLabel').textContent = `मिले शब्द (${foundWords.size}/${currentWords.length})`;
 }
-function updateProgress(){document.getElementById('progressPill').textContent=foundWords.size+'/'+currentWords.length;}
+function updateProgress() {
+  document.getElementById('progressPill').textContent = foundWords.size + '/' + currentWords.length;
+}
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // HINT
-// ═══════════════════════════════════════════════════════════
-function giveHint(){
-  const rem=currentWords.filter(w=>!foundWords.has(w));
-  if(!rem.length) return;
-  const word=rem[Math.floor(Math.random()*rem.length)];
-  const pl=gridPlacements[word]; if(!pl) return;
-  const [r,c]=pl.cells[0];
-  const el=getCell(r,c);
-  if(el){
-    el.style.boxShadow='0 0 0 3px var(--turmeric)';
-    el.style.background='rgba(232,168,56,.6)';
-    el.style.transform='scale(1.18)';
-    setTimeout(()=>{el.style.boxShadow='';el.style.background='';el.style.transform='';},1100);
+// ═══════════════════════════════════════════════════════════════
+function giveHint() {
+  const rem = currentWords.filter(w => !foundWords.has(w));
+  if (!rem.length) return;
+  const word = rem[Math.floor(Math.random() * rem.length)];
+  const pl = gridPlacements[word]; if (!pl) return;
+  const [r, c] = pl.cells[0];
+  const el = getCell(r, c);
+  if (el) {
+    el.style.boxShadow = '0 0 0 3px var(--turmeric)';
+    el.style.background = 'rgba(232,168,56,.6)';
+    el.style.transform = 'scale(1.18)';
+    setTimeout(() => { el.style.boxShadow = ''; el.style.background = ''; el.style.transform = ''; }, 1100);
   }
-  showToast('🔍 '+word+' खोजें!',false);
+  showToast('🔍 ' + word + ' खोजें!', false);
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // CONGRATS
-// ═══════════════════════════════════════════════════════════
-function showCongrats(){
-  const titles=['जय माता दी!','अद्भुत!','वाह!','शाबाश!','🎉 बहुत बढ़िया!'];
-  document.getElementById('congratsTitle').textContent=titles[Math.floor(Math.random()*titles.length)];
-  document.getElementById('congratsMsg').textContent=`आपने सभी ${currentWords.length} शब्द खोज लिए! 🙏`;
+// ═══════════════════════════════════════════════════════════════
+function showCongrats() {
+  const titles = ['जय माता दी!', 'अद्भुत!', 'वाह!', 'शाबाश!', '🎉 बहुत बढ़िया!'];
+  document.getElementById('congratsTitle').textContent = titles[Math.floor(Math.random() * titles.length)];
+  document.getElementById('congratsMsg').textContent = `आपने सभी ${currentWords.length} शब्द खोज लिए! 🙏`;
   document.getElementById('congratsOverlay').classList.add('show');
 }
-function finishPuzzle(){
+function finishPuzzle() {
   document.getElementById('congratsOverlay').classList.remove('show');
-  if(!state.completedPuzzles.includes(currentPuzzleId)){state.completedPuzzles.push(currentPuzzleId);saveState();}
+  if (!state.completedPuzzles.includes(currentPuzzleId)) {
+    state.completedPuzzles.push(currentPuzzleId);
+    saveState();
+  }
   goHome();
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // TOAST
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 let toastTimer;
-function showToast(msg,isWrong=false){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className='toast show'+(isWrong?' wrong':'');
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2000);
+function showToast(msg, isWrong = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isWrong ? ' wrong' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // ONLINE / OFFLINE
-// ═══════════════════════════════════════════════════════════
-function updateOnlineStatus(){
-  document.getElementById('offlineBadge').classList.toggle('show',!navigator.onLine);
-  if(navigator.onLine) fetchPuzzles().then(()=>{if(document.getElementById('homeScreen').classList.contains('active'))renderHome();});
+// ═══════════════════════════════════════════════════════════════
+function updateOnlineStatus() {
+  document.getElementById('offlineBadge').classList.toggle('show', !navigator.onLine);
+  if (navigator.onLine) fetchPuzzles().then(() => {
+    if (document.getElementById('homeScreen').classList.contains('active')) renderHome();
+  });
 }
-window.addEventListener('online',updateOnlineStatus);
-window.addEventListener('offline',updateOnlineStatus);
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // PWA INSTALL
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 let deferredInstall;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;setTimeout(()=>document.getElementById('installBanner').classList.add('show'),3000);});
-function installApp(){if(!deferredInstall)return;deferredInstall.prompt();deferredInstall.userChoice.then(()=>document.getElementById('installBanner').classList.remove('show'));}
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredInstall = e;
+  setTimeout(() => document.getElementById('installBanner').classList.add('show'), 3000);
+});
+function installApp() {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  deferredInstall.userChoice.then(() => document.getElementById('installBanner').classList.remove('show'));
+}
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════════════════════
-async function init(){
+// ═══════════════════════════════════════════════════════════════
+async function init() {
   loadState();
   updateOnlineStatus();
-  if(!state.puzzles.length||navigator.onLine) await fetchPuzzles();
-  if(state.userName){renderHome();showScreen('homeScreen');}
+  if (!state.puzzles.length || navigator.onLine) await fetchPuzzles();
+  if (state.userName) { renderHome(); showScreen('homeScreen'); }
   else showScreen('nameScreen');
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 init();
 </script>

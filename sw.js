@@ -5,7 +5,7 @@
 //   The browser detects sw.js has changed (it always checks sw.js byte-for-byte),
 //   installs the new worker, wipes the old cache, and fetches everything fresh.
 //
-const CACHE_VERSION = 'v3'; // ← bump this on every deploy
+const CACHE_VERSION = 'v4'; // ← bump this on every deploy
 const CACHE = `varga-prastar-${CACHE_VERSION}`;
 
 // Files to pre-cache on install

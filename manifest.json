@@ -2,7 +2,9 @@
   "name": "वर्ग प्रस्तर",
   "short_name": "वर्ग प्रस्तर",
   "description": "देवनागरी शब्द-खोज पहेली",
-  "start_url": "./",
+  "id": "/varga-prastar/",
+  "start_url": "/varga-prastar/",
+  "scope": "/varga-prastar/",
   "display": "standalone",
   "background_color": "#3B1F0A",
   "theme_color": "#8B1A1A",
@@ -10,16 +12,17 @@
   "lang": "hi",
   "icons": [
     {
-      "src": "varga.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%238B1A1A'/><text x='96' y='130' font-size='110' text-anchor='middle' fill='%23E8A838'>🪔</text></svg>",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%238B1A1A'/><text x='256' y='360' font-size='300' text-anchor='middle' fill='%23E8A838'>🪔</text></svg>",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ],
-  "categories": ["games", "education"],
-  "screenshots": []
+  "categories": ["games", "education"]
 }
