@@ -406,8 +406,10 @@ const _MATRAS = [
   '\u0903', // ः  visarga   (less common but valid)
 ];
 
-// Matra weights — ā, i, ī, u, e, o are most common in Hindi; anusvara moderate; others rarer
-const _MATRA_WEIGHTS = [18,14,10,12,6,3,12,5,12,4,8,2]; // sums to 106
+// Matra weights for non-nasal consonants
+// order: ā i ī u ū ṛ e ai o au anusvara visarga
+// ṛ included; anusvara/visarga excluded here (weight 0)
+const _MATRA_WEIGHTS = [18,14,10,12,5,4,12,4,12,3,0,0];
 
 // Svaras (independent vowels)
 const _SVARAS = ['अ','आ','इ','ई','उ','ऊ','ए','ऐ','ओ','औ','ऋ','ॠ'];
@@ -423,34 +425,33 @@ function _wpick(arr, weights) {
 function randomFiller() {
   const roll = Math.random();
 
-  if (roll < 0.40) {
-    // Consonant + matra (any non-nasal consonant)
+  if (roll < 0.45) {
+    // 45% — non-nasal consonant + matra (includes ṛ matra, no anusvara/visarga)
     const c = _C_MAIN[Math.floor(Math.random() * _C_MAIN.length)];
     const m = _wpick(_MATRAS, _MATRA_WEIGHTS);
     return c + m;
 
   } else if (roll < 0.60) {
-    // Half-letter (consonant + virama) — both main and nasal
+    // 15% — half-letter halant, nasal AND non-nasal both
     const pool = [..._C_MAIN, ..._C_NASAL];
     const c = pool[Math.floor(Math.random() * pool.length)];
     return c + '\u094D'; // ्
 
   } else if (roll < 0.75) {
-    // Plain consonant (inherent 'a' vowel, no matra mark)
-    const pool = [..._C_MAIN, ..._C_NASAL];
-    return pool[Math.floor(Math.random() * pool.length)];
+    // 15% — plain non-nasal consonant (inherent 'a', no matra)
+    return _C_MAIN[Math.floor(Math.random() * _C_MAIN.length)];
 
-  } else if (roll < 0.90) {
-    // Independent svara
-    return _SVARAS[Math.floor(Math.random() * _SVARAS.length)];
+  } else if (roll < 0.85) {
+    // 10% — nasal (न म ण only) + one of: a(bare) i u e matras only
+    const nasals = ['न', 'म', 'ण'];
+    const c = nasals[Math.floor(Math.random() * nasals.length)];
+    // bare = inherent 'a'; matras: i ि, u ु, e े
+    const nasalMatras = ['', '\u093F', '\u0941', '\u0947']; // a, i, u, e
+    return c + nasalMatras[Math.floor(Math.random() * nasalMatras.length)];
 
   } else {
-    // Nasal consonant ± matra (full form with vowel)
-    const c = _C_NASAL[Math.floor(Math.random() * _C_NASAL.length)];
-    // 50% bare, 50% with a common matra
-    if (Math.random() < 0.5) return c;
-    const commonMatras = ['\u093E','\u093F','\u0940','\u0941','\u0947','\u094B','\u0902'];
-    return c + commonMatras[Math.floor(Math.random() * commonMatras.length)];
+    // 15% — independent svara
+    return _SVARAS[Math.floor(Math.random() * _SVARAS.length)];
   }
 }
 
